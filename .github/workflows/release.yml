@@ -35,6 +35,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Install ALSA dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install libasound2-dev libudev-dev pkg-config
+
+    steps:
     - uses: actions/checkout@v2
 
     - name: Run tests
