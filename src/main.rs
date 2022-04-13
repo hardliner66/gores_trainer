@@ -4,10 +4,11 @@ use instant::Duration;
 use macroquad::prelude::*;
 
 mod scene;
+mod timestep;
 use macroquad::rand::gen_range;
 use scene::*;
 
-const FPS: u32 = 60;
+const FPS: u32 = 144;
 const FONT_START: f32 = 30.0;
 const FONT_FIN: f32 = 30.0;
 const FONT_SCORE: f32 = 18.0;
@@ -27,7 +28,7 @@ impl Scene<Data, ()> for Start {
     fn update(&mut self, _world: &mut Data) -> SceneSwitch<Data, ()> {
         if macroquad::input::is_mouse_button_pressed(MouseButton::Left) {
             SceneSwitch::replace(Waiting {
-                ticks: 60,
+                ticks: 1 * FPS,
                 background: WHITE,
             })
         } else {
@@ -162,7 +163,7 @@ impl Scene<Data, ()> for Fin {
     fn update(&mut self, _world: &mut Data) -> SceneSwitch<Data, ()> {
         if is_mouse_button_pressed(MouseButton::Left) {
             SceneSwitch::replace(Waiting {
-                ticks: 60,
+                ticks: 1 * FPS,
                 background: WHITE,
             })
         } else {
@@ -234,7 +235,6 @@ impl Default for TimeContext {
 }
 
 pub fn check_update_time(timedata: &mut TimeContext, target_fps: u32) -> bool {
-    timedata.tick();
     let target_dt = fps_as_duration(target_fps);
     if timedata.residual_update_dt > target_dt {
         timedata.residual_update_dt -= target_dt;
@@ -248,13 +248,14 @@ pub fn check_update_time(timedata: &mut TimeContext, target_fps: u32) -> bool {
 async fn main() {
     let mut my_game = MyGame::new();
     let mut time = TimeContext::new();
+    let mut step = timestep::TimeStep::new(FPS as f32);
     loop {
-        while check_update_time(&mut time, FPS) {
+        time.tick();
+        step.run_this(|_| {
             my_game.state.world.width = screen_width();
             my_game.state.world.height = screen_height();
             my_game.state.update();
-        }
-
+        });
         clear_background(WHITE);
         my_game.state.draw();
         next_frame().await
