@@ -14,8 +14,6 @@
 //! system, the only difference is the details of how the pieces are put
 //! together.
 
-use ggez;
-
 /// A command to change to a new scene, either by pushign a new one,
 /// popping one or replacing the current scene (pop and then push).
 pub enum SceneSwitch<C, Ev> {
@@ -29,9 +27,9 @@ pub enum SceneSwitch<C, Ev> {
 /// Defines the callbacks the scene uses:
 /// a common context type `C`, and an input event type `Ev`.
 pub trait Scene<C, Ev> {
-    fn update(&mut self, world: &mut C, ctx: &mut ggez::Context) -> SceneSwitch<C, Ev>;
-    fn draw(&mut self, world: &mut C, ctx: &mut ggez::Context) -> ggez::GameResult<()>;
-    fn input(&mut self, _world: &mut C, _event: Ev, _started: bool) {}
+    fn update(&mut self, world: &mut C) -> SceneSwitch<C, Ev>;
+    fn draw(&mut self, world: &mut C) {}
+    fn input(&mut self, world: &mut C, event: Ev, started: bool) {}
     /// This returns whether or not to draw the next scene down on the
     /// stack as well; this is useful for layers or GUI stuff that
     /// only partially covers the screen.
@@ -77,7 +75,7 @@ impl<C: Default, Ev> Default for SceneStack<C, Ev> {
 }
 
 impl<C, Ev> SceneStack<C, Ev> {
-    pub fn new(_ctx: &mut ggez::Context, global_state: C) -> Self {
+    pub fn new(global_state: C) -> Self {
         Self {
             world: global_state,
             scenes: Vec::new(),
@@ -129,13 +127,13 @@ impl<C, Ev> SceneStack<C, Ev> {
     // These functions must be on the SceneStack because otherwise
     // if you try to get the current scene and the world to call
     // update() on the current scene it causes a double-borrow.  :/
-    pub fn update(&mut self, ctx: &mut ggez::Context) {
+    pub fn update(&mut self) {
         let next_scene = {
             let current_scene = &mut **self
                 .scenes
                 .last_mut()
                 .expect("Tried to update empty scene stack");
-            current_scene.update(&mut self.world, ctx)
+            current_scene.update(&mut self.world)
         };
         self.switch(next_scene);
     }
@@ -144,21 +142,19 @@ impl<C, Ev> SceneStack<C, Ev> {
     /// supposed to draw the previous one, then draw them from the bottom up.
     ///
     /// This allows for layering GUI's and such.
-    fn draw_scenes(scenes: &mut [Box<dyn Scene<C, Ev>>], world: &mut C, ctx: &mut ggez::Context) {
+    fn draw_scenes(scenes: &mut [Box<dyn Scene<C, Ev>>], world: &mut C) {
         assert!(scenes.len() > 0);
         if let Some((current, rest)) = scenes.split_last_mut() {
             if current.draw_previous() {
-                SceneStack::draw_scenes(rest, world, ctx);
+                SceneStack::draw_scenes(rest, world);
             }
-            current
-                .draw(world, ctx)
-                .expect("I would hope drawing a scene never fails!");
+            current.draw(world)
         }
     }
 
     /// Draw the current scene.
-    pub fn draw(&mut self, ctx: &mut ggez::Context) {
-        SceneStack::draw_scenes(&mut self.scenes, &mut self.world, ctx)
+    pub fn draw(&mut self) {
+        SceneStack::draw_scenes(&mut self.scenes, &mut self.world)
     }
 
     /// Feeds the given input event to the current scene.
