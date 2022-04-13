@@ -132,7 +132,7 @@ checksum = "333928d5eb103c5d4050533cec0384302db6be8ef7d3cebd30ec6a35350353da"
 
 [[package]]
 name = "gores_trainer"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "instant",
  "macroquad",
