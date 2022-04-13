@@ -40,7 +40,7 @@ impl Scene<Data, ()> for Start {
     fn update(&mut self, _world: &mut Data) -> SceneSwitch<Data, ()> {
         if macroquad::input::is_mouse_button_pressed(MouseButton::Left) {
             SceneSwitch::replace(Waiting {
-                until: Duration::from_secs(1),
+                until: Duration::from_millis(500),
                 background: WHITE,
             })
         } else {
@@ -175,8 +175,11 @@ impl Scene<Data, ()> for Target {
 struct Fin;
 
 impl Scene<Data, ()> for Fin {
-    fn update(&mut self, _world: &mut Data) -> SceneSwitch<Data, ()> {
+    fn update(&mut self, world: &mut Data) -> SceneSwitch<Data, ()> {
         if is_mouse_button_pressed(MouseButton::Left) {
+            world.count = 0;
+            world.score = 0;
+            world.was_pressed = false;
             SceneSwitch::replace(Waiting {
                 until: Duration::from_secs(1),
                 background: WHITE,
