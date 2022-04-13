@@ -12,11 +12,6 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-    - name: Install ALSA dev
-      run: |
-        sudo apt-get update
-        sudo apt-get install libasound2-dev libudev-dev pkg-config libgl1-mesa-dev libxi-dev
-
     - uses: actions/checkout@v2
 
     - name: Create release
@@ -30,22 +25,19 @@ jobs:
         draft: false
         prerelease: false
 
-  upload-config:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-
     - name: Rename config
       run: cp ./assets/default_config.toml ./config.toml
 
-    - name: Upload release
-      id: upload-release-linux
-      uses: alexellis/upload-assets@0.2.3
+    - name: Upload Release Asset
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_paths: '["./config.toml"]'
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: ./config.toml
+        asset_name: config.toml
+        asset_content_type: application/toml
 
   build-linux:
     runs-on: ubuntu-latest
