@@ -106,6 +106,9 @@ pub struct Target {
 
 impl Scene<Data, ()> for Target {
     fn update(&mut self, world: &mut Data) -> SceneSwitch<Data, ()> {
+        if world.count > 50 {
+            return SceneSwitch::replace(Fin);
+        }
         if Instant::now().duration_since(world.timer_start) > self.until {
             world.count += 1;
             world.timer_start = Instant::now();
