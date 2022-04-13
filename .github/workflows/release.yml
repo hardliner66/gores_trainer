@@ -12,6 +12,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+    - name: Install ALSA dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install libasound2-dev
+
     - uses: actions/checkout@v2
 
     - name: Create release
