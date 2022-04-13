@@ -1,16 +1,26 @@
+use std::error::Error;
+
 use instant::{Duration, Instant};
 use macroquad::prelude::*;
+use serde::{Deserialize, Serialize};
 
 mod scene;
 use macroquad::rand::gen_range;
 use scene::*;
 
 #[cfg(not(target_arch = "wasm32"))]
-const FPS: u32 = 60;
+const FPS: u32 = 144;
 
 const FONT_START: f32 = 30.0;
 const FONT_FIN: f32 = 30.0;
 const FONT_SCORE: f32 = 18.0;
+
+#[derive(Serialize, Deserialize)]
+pub struct Config {
+    size: f32,
+    wait_time: u64,
+    target_time: u64,
+}
 
 pub struct Data {
     pub score: u32,
@@ -19,6 +29,13 @@ pub struct Data {
     pub width: f32,
     pub height: f32,
     pub timer_start: Instant,
+    pub config: Config,
+}
+
+fn get_config(filename: &str) -> Result<Config, Box<dyn Error>> {
+    let contents = std::fs::read_to_string(filename)
+        .unwrap_or_else(|_| include_str!("../assets/default_config.toml").to_string());
+    Ok(toml::from_str(&contents)?)
 }
 
 impl Default for Data {
@@ -30,6 +47,7 @@ impl Default for Data {
             width: Default::default(),
             height: Default::default(),
             timer_start: Instant::now(),
+            config: get_config("config.toml").expect("Could not parse toml!"),
         }
     }
 }
@@ -37,10 +55,10 @@ impl Default for Data {
 pub struct Start;
 
 impl Scene<Data, ()> for Start {
-    fn update(&mut self, _world: &mut Data) -> SceneSwitch<Data, ()> {
+    fn update(&mut self, world: &mut Data) -> SceneSwitch<Data, ()> {
         if macroquad::input::is_mouse_button_pressed(MouseButton::Left) {
             SceneSwitch::replace(Waiting {
-                until: Duration::from_millis(500),
+                until: Duration::from_millis(world.config.wait_time),
                 background: WHITE,
             })
         } else {
@@ -87,10 +105,11 @@ impl Scene<Data, ()> for Waiting {
         if Instant::now().duration_since(world.timer_start) > self.until {
             let v = gen_range(0, 360u32) as f32;
             world.timer_start = Instant::now();
+            let size = world.config.size / 2.0;
             SceneSwitch::replace(Target {
-                until: Duration::from_secs(1),
-                min: (v - 5.0).rem_euclid(360.0),
-                max: (v + 5.0).rem_euclid(360.0),
+                until: Duration::from_secs(world.config.target_time),
+                min: (v - size).rem_euclid(360.0),
+                max: (v + size).rem_euclid(360.0),
             })
         } else {
             SceneSwitch::None
@@ -113,7 +132,7 @@ impl Scene<Data, ()> for Target {
             world.count += 1;
             world.timer_start = Instant::now();
             SceneSwitch::replace(Waiting {
-                until: Duration::from_millis(gen_range(1000, 6000)),
+                until: Duration::from_millis(world.config.wait_time),
                 background: RED,
             })
         } else {
@@ -144,7 +163,7 @@ impl Scene<Data, ()> for Target {
                 }
                 world.count += 1;
                 world.timer_start = Instant::now();
-                let until = Duration::from_millis(gen_range(1000, 6000));
+                let until = Duration::from_millis(world.config.wait_time);
                 return SceneSwitch::replace(Waiting { until, background });
             }
 
@@ -181,7 +200,7 @@ impl Scene<Data, ()> for Fin {
             world.score = 0;
             world.was_pressed = false;
             SceneSwitch::replace(Waiting {
-                until: Duration::from_secs(1),
+                until: Duration::from_millis(world.config.wait_time),
                 background: WHITE,
             })
         } else {
