@@ -1,5 +1,3 @@
-use std::time;
-
 use instant::{Duration, Instant};
 use macroquad::prelude::*;
 
@@ -7,7 +5,9 @@ mod scene;
 use macroquad::rand::gen_range;
 use scene::*;
 
+#[cfg(not(target_arch = "wasm32"))]
 const FPS: u32 = 60;
+
 const FONT_START: f32 = 30.0;
 const FONT_FIN: f32 = 30.0;
 const FONT_SCORE: f32 = 18.0;
@@ -82,10 +82,11 @@ impl Scene<Data, ()> for Waiting {
 
     fn update(&mut self, world: &mut Data) -> SceneSwitch<Data, ()> {
         if world.count > 50 {
-            SceneSwitch::replace(Fin);
+            return SceneSwitch::replace(Fin);
         }
-        if world.timer_start - Instant::now() <= self.until {
+        if Instant::now().duration_since(world.timer_start) > self.until {
             let v = gen_range(0, 360u32) as f32;
+            world.timer_start = Instant::now();
             SceneSwitch::replace(Target {
                 until: Duration::from_secs(1),
                 min: (v - 5.0).rem_euclid(360.0),
@@ -105,8 +106,9 @@ pub struct Target {
 
 impl Scene<Data, ()> for Target {
     fn update(&mut self, world: &mut Data) -> SceneSwitch<Data, ()> {
-        if world.timer_start - Instant::now() <= self.until {
+        if Instant::now().duration_since(world.timer_start) > self.until {
             world.count += 1;
+            world.timer_start = Instant::now();
             SceneSwitch::replace(Waiting {
                 until: Duration::from_millis(gen_range(1000, 6000)),
                 background: RED,
@@ -138,6 +140,7 @@ impl Scene<Data, ()> for Target {
                     }
                 }
                 world.count += 1;
+                world.timer_start = Instant::now();
                 let until = Duration::from_millis(gen_range(1000, 6000));
                 return SceneSwitch::replace(Waiting { until, background });
             }
@@ -195,14 +198,14 @@ impl Scene<Data, ()> for Fin {
     }
 }
 
-pub fn f64_to_duration(t: f64) -> time::Duration {
+pub fn f64_to_duration(t: f64) -> Duration {
     debug_assert!(t > 0.0, "f64_to_duration passed a negative number!");
     let seconds = t.trunc();
     let nanos = t.fract() * 1e9;
-    time::Duration::new(seconds as u64, nanos as u32)
+    Duration::new(seconds as u64, nanos as u32)
 }
 
-fn fps_as_duration(fps: u32) -> time::Duration {
+fn fps_as_duration(fps: u32) -> Duration {
     let target_dt_seconds = 1.0 / f64::from(fps);
     f64_to_duration(target_dt_seconds)
 }
@@ -211,7 +214,7 @@ fn fps_as_duration(fps: u32) -> time::Duration {
 #[derive(Debug)]
 pub struct TimeContext {
     last_instant: Instant,
-    residual_update_dt: time::Duration,
+    residual_update_dt: Duration,
     frame_count: usize,
 }
 
@@ -220,7 +223,7 @@ impl TimeContext {
     pub fn new() -> TimeContext {
         TimeContext {
             last_instant: Instant::now(),
-            residual_update_dt: time::Duration::from_secs(0),
+            residual_update_dt: Duration::from_secs(0),
             frame_count: 0,
         }
     }
@@ -280,9 +283,7 @@ async fn main() {
 #[cfg(target_arch = "wasm32")]
 async fn main() {
     let mut my_game = MyGame::new();
-    let mut timedata = TimeContext::new();
     loop {
-        timedata.tick();
         my_game.state.world.width = screen_width();
         my_game.state.world.height = screen_height();
         my_game.state.update();

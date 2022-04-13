@@ -16,6 +16,7 @@
 
 /// A command to change to a new scene, either by pushign a new one,
 /// popping one or replacing the current scene (pop and then push).
+#[allow(dead_code)]
 pub enum SceneSwitch<C, Ev> {
     None,
     Push(Box<dyn Scene<C, Ev>>),
@@ -28,8 +29,8 @@ pub enum SceneSwitch<C, Ev> {
 /// a common context type `C`, and an input event type `Ev`.
 pub trait Scene<C, Ev> {
     fn update(&mut self, world: &mut C) -> SceneSwitch<C, Ev>;
-    fn draw(&mut self, world: &mut C) {}
-    fn input(&mut self, world: &mut C, event: Ev, started: bool) {}
+    fn draw(&mut self, _world: &mut C) {}
+    fn input(&mut self, _world: &mut C, _event: Ev, _started: bool) {}
     /// This returns whether or not to draw the next scene down on the
     /// stack as well; this is useful for layers or GUI stuff that
     /// only partially covers the screen.
@@ -51,6 +52,7 @@ impl<C, Ev> SceneSwitch<C, Ev> {
     }
 
     /// Same as `replace()` but returns SceneSwitch::Push
+    #[allow(dead_code)]
     pub fn push<S>(scene: S) -> Self
     where
         S: Scene<C, Ev> + 'static,
@@ -75,6 +77,7 @@ impl<C: Default, Ev> Default for SceneStack<C, Ev> {
 }
 
 impl<C, Ev> SceneStack<C, Ev> {
+    #[allow(dead_code)]
     pub fn new(global_state: C) -> Self {
         Self {
             world: global_state,
@@ -96,6 +99,7 @@ impl<C, Ev> SceneStack<C, Ev> {
     }
 
     /// Returns the current scene; panics if there is none.
+    #[allow(dead_code)]
     pub fn current(&self) -> &dyn Scene<C, Ev> {
         &**self
             .scenes
@@ -158,25 +162,12 @@ impl<C, Ev> SceneStack<C, Ev> {
     }
 
     /// Feeds the given input event to the current scene.
+    #[allow(dead_code)]
     pub fn input(&mut self, event: Ev, started: bool) {
         let current_scene = &mut **self
             .scenes
             .last_mut()
             .expect("Tried to do input for empty scene stack");
         current_scene.input(&mut self.world, event, started);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct Thing {
-        scenes: Vec<SceneStack<u32, u32>>,
-    }
-
-    #[test]
-    fn test1() {
-        let x = Thing { scenes: vec![] };
     }
 }
