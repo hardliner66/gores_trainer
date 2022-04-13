@@ -38,7 +38,7 @@ jobs:
     - name: Install ALSA dev
       run: |
         sudo apt-get update
-        sudo apt-get install libasound2-dev libudev-dev pkg-config
+        sudo apt-get install libasound2-dev libudev-dev pkg-config libgl1-mesa-dev libxi-dev
 
     - uses: actions/checkout@v2
 
