@@ -1,4 +1,3 @@
-use std::cmp;
 use std::time;
 
 use macroquad::prelude::*;
@@ -51,9 +50,7 @@ pub struct Waiting {
     pub background: Color,
 }
 
-impl Scene<Data, ()> for Waiting {
-    fn draw(&mut self, world: &mut Data) {
-        clear_background(self.background);
+fn draw_score(world: &mut Data) {
         draw_text(
             &format!("{} / {}", world.score, world.count),
             10.0,
@@ -61,6 +58,12 @@ impl Scene<Data, ()> for Waiting {
             FONT_SCORE,
             BLACK,
         );
+}
+
+impl Scene<Data, ()> for Waiting {
+    fn draw(&mut self, world: &mut Data) {
+        clear_background(self.background);
+        draw_score(world);
     }
 
     fn update(&mut self, world: &mut Data) -> SceneSwitch<Data, ()> {
@@ -136,13 +139,7 @@ impl Scene<Data, ()> for Target {
     }
 
     fn draw(&mut self, world: &mut Data) {
-        draw_text(
-            &format!("{} / {}", world.score, world.count),
-            10.0,
-            10.0,
-            FONT_SCORE,
-            BLACK,
-        );
+        draw_score(world);
         let x = world.width / 2.0;
         let y = world.height / 2.0;
         let center = Vec2::new(x, y);
@@ -199,92 +196,19 @@ fn fps_as_duration(fps: u32) -> time::Duration {
     f64_to_duration(target_dt_seconds)
 }
 
-/// A simple buffer that fills
-/// up to a limit and then holds the last
-/// N items that have been inserted into it,
-/// overwriting old ones in a round-robin fashion.
-///
-/// It's not quite a ring buffer 'cause you can't
-/// remove items from it, it just holds the last N
-/// things.
-#[derive(Debug, Clone)]
-struct LogBuffer<T>
-where
-    T: Clone,
-{
-    head: usize,
-    size: usize,
-    /// The number of actual samples inserted, used for
-    /// smarter averaging.
-    samples: usize,
-    contents: Vec<T>,
-}
-
-impl<T> LogBuffer<T>
-where
-    T: Clone + Copy,
-{
-    fn new(size: usize, init_val: T) -> LogBuffer<T> {
-        LogBuffer {
-            head: 0,
-            size,
-            contents: vec![init_val; size],
-            // Never divide by 0
-            samples: 1,
-        }
-    }
-
-    /// Pushes a new item into the `LogBuffer`, overwriting
-    /// the oldest item in it.
-    fn push(&mut self, item: T) {
-        self.head = (self.head + 1) % self.contents.len();
-        self.contents[self.head] = item;
-        self.size = cmp::min(self.size + 1, self.contents.len());
-        self.samples += 1;
-    }
-
-    /// Returns a slice pointing at the contents of the buffer.
-    /// They are in *no particular order*, and if not all the
-    /// slots are filled, the empty slots will be present but
-    /// contain the initial value given to [`new()`](#method.new).
-    ///
-    /// We're only using this to log FPS for a short time,
-    /// so we don't care for the second or so when it's inaccurate.
-    fn contents(&self) -> &[T] {
-        if self.samples > self.size {
-            &self.contents
-        } else {
-            &self.contents[..self.samples]
-        }
-    }
-
-    /// Returns the most recent value in the buffer.
-    fn latest(&self) -> T {
-        self.contents[self.head]
-    }
-}
-
 /// A structure that contains our time-tracking state.
 #[derive(Debug)]
 pub struct TimeContext {
-    init_instant: time::Instant,
-    last_instant: time::Instant,
-    frame_durations: LogBuffer<time::Duration>,
+    last_instant: instant::Instant,
     residual_update_dt: time::Duration,
     frame_count: usize,
 }
 
-/// How many frames we log update times for.
-const TIME_LOG_FRAMES: usize = 200;
-
 impl TimeContext {
     /// Creates a new `TimeContext` and initializes the start to this instant.
     pub fn new() -> TimeContext {
-        let initial_dt = time::Duration::from_millis(16);
         TimeContext {
-            init_instant: time::Instant::now(),
-            last_instant: time::Instant::now(),
-            frame_durations: LogBuffer::new(TIME_LOG_FRAMES, initial_dt),
+            last_instant: instant::Instant::now(),
             residual_update_dt: time::Duration::from_secs(0),
             frame_count: 0,
         }
@@ -298,9 +222,8 @@ impl TimeContext {
     /// It's usually not necessary to call this function yourself,
     /// [`event::run()`](../event/fn.run.html) will do it for you.
     pub fn tick(&mut self) {
-        let now = time::Instant::now();
+        let now = instant::Instant::now();
         let time_since_last = now - self.last_instant;
-        self.frame_durations.push(time_since_last);
         self.last_instant = now;
         self.frame_count += 1;
 
