@@ -1039,7 +1039,7 @@ dependencies = [
 
 [[package]]
 name = "gores_trainer"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "ggez",
  "rand",
