@@ -1,13 +1,194 @@
-#![allow(unused_imports)]
-
-use ggez::conf::{FullscreenType, WindowMode, WindowSetup};
+use ggez::conf::WindowSetup;
 use ggez::event::{self, EventHandler};
-use ggez::graphics::{self, Color, DrawMode, DrawParam, FillOptions, Mesh};
+use ggez::graphics::{self, Color, DrawMode, DrawParam, Mesh};
 use ggez::input::mouse;
 use ggez::mint::Point2;
 use ggez::{Context, ContextBuilder, GameResult};
 use rand::prelude::ThreadRng;
 use rand::Rng;
+
+mod scene;
+use scene::*;
+
+const FPS: u32 = 60;
+
+#[derive(Default)]
+pub struct Data {
+    pub score: u32,
+    pub count: u32,
+    pub rng: ThreadRng,
+    pub was_pressed: bool,
+    pub width: f32,
+    pub height: f32,
+}
+
+pub struct Start;
+
+impl Scene<Data, ()> for Start {
+    fn update(&mut self, _world: &mut Data, ctx: &mut ggez::Context) -> SceneSwitch<Data, ()> {
+        if mouse::button_pressed(ctx, event::MouseButton::Left) {
+            SceneSwitch::replace(Waiting {
+                ticks: 60,
+                background: Color::WHITE,
+            })
+        } else {
+            SceneSwitch::None
+        }
+    }
+
+    fn draw(&mut self, world: &mut Data, ctx: &mut ggez::Context) -> ggez::GameResult<()> {
+        let t = graphics::Text::new("Click to start!");
+        graphics::draw(
+            ctx,
+            &t,
+            (
+                Point2 {
+                    x: world.width / 2.0,
+                    y: world.height / 2.0,
+                },
+                Color::BLACK,
+            ),
+        )
+    }
+}
+
+pub struct Waiting {
+    pub ticks: u32,
+    pub background: Color,
+}
+
+impl Scene<Data, ()> for Waiting {
+    fn draw(&mut self, world: &mut Data, ctx: &mut ggez::Context) -> ggez::GameResult<()> {
+        graphics::clear(ctx, self.background);
+        let t = graphics::Text::new(format!("{} / {}", world.score, world.count));
+        graphics::draw(ctx, &t, (Point2 { x: 10.0, y: 10.0 }, Color::BLACK))
+    }
+
+    fn update(&mut self, world: &mut Data, _ctx: &mut ggez::Context) -> SceneSwitch<Data, ()> {
+        if world.count > 50 {
+            SceneSwitch::replace(Fin);
+        }
+        self.ticks -= 1;
+        if self.ticks <= 0 {
+            let v = world.rng.gen_range(0..360u32) as f32;
+            SceneSwitch::replace(Target {
+                ticks: 1 * FPS,
+                min: v - 5.0,
+                max: v + 5.0,
+            })
+        } else {
+            SceneSwitch::None
+        }
+    }
+}
+
+pub struct Target {
+    pub ticks: u32,
+    pub min: f32,
+    pub max: f32,
+}
+
+impl Scene<Data, ()> for Target {
+    fn update(&mut self, world: &mut Data, ctx: &mut ggez::Context) -> SceneSwitch<Data, ()> {
+        self.ticks -= 1;
+        if self.ticks <= 0 {
+            world.count += 1;
+            let ticks = world.rng.gen_range(1..=6) * FPS / 2;
+            SceneSwitch::replace(Waiting {
+                ticks,
+                background: Color::RED,
+            })
+        } else {
+            let is_pressed = mouse::button_pressed(ctx, event::MouseButton::Left);
+            if is_pressed && world.was_pressed == false {
+                let mut background = Color::RED;
+                world.was_pressed = true;
+                let pos = mouse::position(ctx);
+                let pos = Point2 {
+                    x: pos.x - (world.width / 2.0),
+                    y: pos.y - (world.height / 2.0),
+                };
+                let angle = cartesian2polar(&pos).angle.to_degrees().rem_euclid(360.0);
+                if self.min < self.max {
+                    if angle >= self.min && angle <= self.max {
+                        world.score += 1;
+                        background = Color::WHITE;
+                    }
+                } else {
+                    if angle > 180.0 {
+                        if angle >= self.min && angle <= 360.0 {
+                            world.score += 1;
+                            background = Color::WHITE;
+                        }
+                    } else {
+                        if angle >= 0.0 && angle <= self.max {
+                            world.score += 1;
+                            background = Color::WHITE;
+                        }
+                    }
+                }
+                world.count += 1;
+                let ticks = world.rng.gen_range(1..=6) * FPS / 2;
+                return SceneSwitch::replace(Waiting { ticks, background });
+            }
+
+            if !is_pressed {
+                world.was_pressed = false;
+            }
+            SceneSwitch::None
+        }
+    }
+
+    fn draw(&mut self, world: &mut Data, ctx: &mut ggez::Context) -> ggez::GameResult<()> {
+        let window = graphics::window(ctx).inner_size();
+        let width = window.width as f32;
+        let height = window.height as f32;
+        let center = Point2 {
+            x: width / 2.0,
+            y: height / 2.0,
+        };
+        let p2 = polar2cartesian(&center, 2000.0, self.min.to_radians());
+        let p3 = polar2cartesian(&center, 2000.0, self.max.to_radians());
+        let t = Mesh::new_polygon(ctx, DrawMode::fill(), &[center, p2, p3], Color::BLUE)?;
+        graphics::draw(ctx, &t, DrawParam::default())?;
+        let t = graphics::Text::new(format!("{} / {}", world.score, world.count));
+        graphics::draw(ctx, &t, (Point2 { x: 10.0, y: 10.0 }, Color::BLACK))
+    }
+}
+
+struct Fin;
+
+impl Scene<Data, ()> for Fin {
+    fn update(&mut self, _world: &mut Data, ctx: &mut ggez::Context) -> SceneSwitch<Data, ()> {
+        if mouse::button_pressed(ctx, event::MouseButton::Left) {
+            SceneSwitch::replace(Waiting {
+                ticks: 60,
+                background: Color::WHITE,
+            })
+        } else {
+            SceneSwitch::None
+        }
+    }
+
+    fn draw(&mut self, world: &mut Data, ctx: &mut ggez::Context) -> ggez::GameResult<()> {
+        let t = graphics::Text::new(format!(
+            "You hit {} out of {}! Click to restart!",
+            world.score,
+            world.count - 1
+        ));
+        graphics::draw(
+            ctx,
+            &t,
+            (
+                Point2 {
+                    x: world.width / 2.0,
+                    y: world.height / 2.0,
+                },
+                Color::BLACK,
+            ),
+        )
+    }
+}
 
 fn main() {
     // Make a Context.
@@ -26,30 +207,17 @@ fn main() {
     event::run(ctx, event_loop, my_game);
 }
 
-#[derive(Debug)]
-struct Target {
-    pub min: f32,
-    pub max: f32,
-}
-
+#[derive(Default)]
 struct MyGame {
-    pub was_pressed: bool,
-    pub score: u32,
-    pub count: u32,
-    pub target: Option<Target>,
-    pub rng: ThreadRng,
+    state: SceneStack<Data, ()>,
 }
 
 impl MyGame {
     pub fn new(_ctx: &mut Context) -> MyGame {
         // Load/create resources such as images here.
-        MyGame {
-            target: None,
-            rng: rand::thread_rng(),
-            score: 0,
-            count: 0,
-            was_pressed: false,
-        }
+        let mut g = MyGame::default();
+        g.state.push(Box::new(Start));
+        g
     }
 }
 
@@ -76,72 +244,18 @@ fn cartesian2polar(cart_vec: &Point2<f32>) -> Polar<f32> {
 
 impl EventHandler for MyGame {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
-        while ggez::timer::check_update_time(ctx, 60) {
+        while ggez::timer::check_update_time(ctx, FPS) {
             let window = graphics::window(ctx).inner_size();
-            let width = window.width as f32;
-            let height = window.height as f32;
-
-            let is_pressed = mouse::button_pressed(ctx, event::MouseButton::Left);
-            if let Some(target) = &self.target {
-                if is_pressed && self.was_pressed == false {
-                    self.was_pressed = true;
-                    let pos = mouse::position(ctx);
-                    let pos = Point2 {
-                        x: pos.x - (width / 2.0),
-                        y: pos.y - (height / 2.0),
-                    };
-                    let angle = cartesian2polar(&pos).angle.to_degrees().rem_euclid(360.0);
-                    if target.min < target.max {
-                        if angle >= target.min && angle <= target.max {
-                            self.score += 1;
-                        }
-                    } else {
-                        if angle > 180.0 {
-                            if angle >= target.min && angle <= 360.0 {
-                                self.score += 1;
-                            }
-                        } else {
-                            if angle >= 0.0 && angle <= target.max {
-                                self.score += 1;
-                            }
-                        }
-                    }
-                    self.target = None;
-                    self.count += 1;
-                }
-            } else {
-                let v = self.rng.gen_range(0..360u32) as f32;
-                self.target = Some(Target {
-                    min: (v - 10.0),
-                    max: (v + 10.0),
-                });
-            }
-            if !is_pressed {
-                self.was_pressed = false;
-            }
+            self.state.world.width = window.width as f32;
+            self.state.world.height = window.height as f32;
+            self.state.update(ctx);
         }
-        // Update code here...
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, Color::WHITE);
-        if let Some(target) = &self.target {
-            let window = graphics::window(ctx).inner_size();
-            let width = window.width as f32;
-            let height = window.height as f32;
-            let center = Point2 {
-                x: width / 2.0,
-                y: height / 2.0,
-            };
-            let p2 = polar2cartesian(&center, 2000.0, target.min.to_radians());
-            let p3 = polar2cartesian(&center, 2000.0, target.max.to_radians());
-            let t = Mesh::new_polygon(ctx, DrawMode::fill(), &[center, p2, p3], Color::BLUE)?;
-            graphics::draw(ctx, &t, DrawParam::default())?;
-        }
-        let t = graphics::Text::new(format!("{} / {}", self.score, self.count));
-        graphics::draw(ctx, &t, (Point2 { x: 10.0, y: 10.0 }, Color::BLACK))?;
-        // Draw code here...
+        self.state.draw(ctx);
         graphics::present(ctx)
     }
 }
