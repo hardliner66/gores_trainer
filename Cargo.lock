@@ -1045,7 +1045,7 @@ dependencies = [
 
 [[package]]
 name = "gores_trainer"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "game_state_machine",
  "ggez",
