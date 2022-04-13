@@ -1,10 +1,8 @@
 use std::time;
 
-use instant::Duration;
 use macroquad::prelude::*;
 
 mod scene;
-mod timestep;
 use macroquad::rand::gen_range;
 use scene::*;
 
@@ -201,6 +199,7 @@ fn fps_as_duration(fps: u32) -> time::Duration {
 /// A structure that contains our time-tracking state.
 #[derive(Debug)]
 pub struct TimeContext {
+    last_instant: instant::Instant,
     residual_update_dt: time::Duration,
     frame_count: usize,
 }
@@ -209,6 +208,7 @@ impl TimeContext {
     /// Creates a new `TimeContext` and initializes the start to this instant.
     pub fn new() -> TimeContext {
         TimeContext {
+            last_instant: instant::Instant::now(),
             residual_update_dt: time::Duration::from_secs(0),
             frame_count: 0,
         }
@@ -222,9 +222,12 @@ impl TimeContext {
     /// It's usually not necessary to call this function yourself,
     /// [`event::run()`](../event/fn.run.html) will do it for you.
     pub fn tick(&mut self) {
+        let now = instant::Instant::now();
+        let time_since_last = now - self.last_instant;
+        self.last_instant = now;
         self.frame_count += 1;
 
-        self.residual_update_dt += Duration::from_millis((get_frame_time() * 1000.0) as u64);
+        self.residual_update_dt += time_since_last;
     }
 }
 
@@ -245,17 +248,33 @@ pub fn check_update_time(timedata: &mut TimeContext, target_fps: u32) -> bool {
 }
 
 #[macroquad::main("GoresTrainer")]
+#[cfg(not(target_arch = "wasm32"))]
 async fn main() {
     let mut my_game = MyGame::new();
-    let mut time = TimeContext::new();
-    let mut step = timestep::TimeStep::new(FPS as f32);
+    let mut timedata = TimeContext::new();
     loop {
-        time.tick();
-        step.run_this(|_| {
+        timedata.tick();
+        while check_update_time(&mut timedata, FPS) {
             my_game.state.world.width = screen_width();
             my_game.state.world.height = screen_height();
             my_game.state.update();
-        });
+        }
+        clear_background(WHITE);
+        my_game.state.draw();
+        next_frame().await
+    }
+}
+
+#[macroquad::main("GoresTrainer")]
+#[cfg(target_arch = "wasm32")]
+async fn main() {
+    let mut my_game = MyGame::new();
+    let mut timedata = TimeContext::new();
+    loop {
+        timedata.tick();
+        my_game.state.world.width = screen_width();
+        my_game.state.world.height = screen_height();
+        my_game.state.update();
         clear_background(WHITE);
         my_game.state.draw();
         next_frame().await
