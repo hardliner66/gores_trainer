@@ -1,5 +1,6 @@
 use std::time;
 
+use instant::Duration;
 use macroquad::prelude::*;
 
 mod scene;
@@ -51,13 +52,13 @@ pub struct Waiting {
 }
 
 fn draw_score(world: &mut Data) {
-        draw_text(
-            &format!("{} / {}", world.score, world.count),
-            10.0,
-            5.0 + FONT_SCORE,
-            FONT_SCORE,
-            BLACK,
-        );
+    draw_text(
+        &format!("{} / {}", world.score, world.count),
+        10.0,
+        5.0 + FONT_SCORE,
+        FONT_SCORE,
+        BLACK,
+    );
 }
 
 impl Scene<Data, ()> for Waiting {
@@ -143,7 +144,7 @@ impl Scene<Data, ()> for Target {
         let x = world.width / 2.0;
         let y = world.height / 2.0;
         let center = Vec2::new(x, y);
-        
+
         let p2 = polar2cartesian(&center, 2000.0, self.min.to_radians());
         let p3 = polar2cartesian(&center, 2000.0, self.max.to_radians());
         draw_triangle(center, p2, p3, BLUE);
@@ -199,7 +200,6 @@ fn fps_as_duration(fps: u32) -> time::Duration {
 /// A structure that contains our time-tracking state.
 #[derive(Debug)]
 pub struct TimeContext {
-    last_instant: instant::Instant,
     residual_update_dt: time::Duration,
     frame_count: usize,
 }
@@ -208,7 +208,6 @@ impl TimeContext {
     /// Creates a new `TimeContext` and initializes the start to this instant.
     pub fn new() -> TimeContext {
         TimeContext {
-            last_instant: instant::Instant::now(),
             residual_update_dt: time::Duration::from_secs(0),
             frame_count: 0,
         }
@@ -222,12 +221,9 @@ impl TimeContext {
     /// It's usually not necessary to call this function yourself,
     /// [`event::run()`](../event/fn.run.html) will do it for you.
     pub fn tick(&mut self) {
-        let now = instant::Instant::now();
-        let time_since_last = now - self.last_instant;
-        self.last_instant = now;
         self.frame_count += 1;
 
-        self.residual_update_dt += time_since_last;
+        self.residual_update_dt += Duration::from_millis((get_frame_time() * 1000.0) as u64);
     }
 }
 
