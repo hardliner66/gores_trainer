@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use ggez::conf::{FullscreenType, WindowMode};
+use ggez::conf::{FullscreenType, WindowMode, WindowSetup};
 use ggez::event::{self, EventHandler};
 use ggez::graphics::{self, Color, DrawMode, DrawParam, FillOptions, Mesh};
 use ggez::input::mouse;
@@ -11,10 +11,11 @@ use rand::Rng;
 
 fn main() {
     // Make a Context.
-    let (mut ctx, event_loop) = ContextBuilder::new("my_game", "Cool Game Author")
+    let (mut ctx, event_loop) = ContextBuilder::new("gores_trainer", "IAmHardliner")
         // .window_mode(WindowMode::fullscreen_type(WindowMode::default(), FullscreenType::Desktop))
+        .window_setup(WindowSetup::default().title("Gores Aim Trainer"))
         .build()
-        .expect("aieee, could not create ggez context!");
+        .expect("Failed to create context!");
 
     // Create an instance of your event handler.
     // Usually, you should provide it with the Context object to
@@ -62,7 +63,7 @@ fn polar2cartesian(center: &Point2<f32>, length: f32, angle: f32) -> Point2<f32>
 }
 
 #[derive(Default)]
-struct Polar<T: Default> {
+pub struct Polar<T: Default> {
     pub len: T,
     pub angle: T,
 }
