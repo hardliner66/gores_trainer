@@ -234,6 +234,7 @@ impl Default for TimeContext {
 }
 
 pub fn check_update_time(timedata: &mut TimeContext, target_fps: u32) -> bool {
+    timedata.tick();
     let target_dt = fps_as_duration(target_fps);
     if timedata.residual_update_dt > target_dt {
         timedata.residual_update_dt -= target_dt;
@@ -248,12 +249,12 @@ async fn main() {
     let mut my_game = MyGame::new();
     let mut time = TimeContext::new();
     loop {
-        time.tick();
         while check_update_time(&mut time, FPS) {
             my_game.state.world.width = screen_width();
             my_game.state.world.height = screen_height();
             my_game.state.update();
         }
+
         clear_background(WHITE);
         my_game.state.draw();
         next_frame().await
