@@ -9,6 +9,5 @@ public = false
 [dependencies]
 game_state_machine = "1.0.0"
 macroquad = "0.3.15"
-rand = "0.8.5"
 
 [features]

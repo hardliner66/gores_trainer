@@ -4,8 +4,7 @@ use std::time;
 use macroquad::prelude::*;
 
 mod scene;
-use ::rand::prelude::ThreadRng;
-use ::rand::Rng;
+use macroquad::rand::gen_range;
 use scene::*;
 
 const FPS: u32 = 60;
@@ -17,7 +16,6 @@ const FONT_SCORE: f32 = 18.0;
 pub struct Data {
     pub score: u32,
     pub count: u32,
-    pub rng: ThreadRng,
     pub was_pressed: bool,
     pub width: f32,
     pub height: f32,
@@ -71,11 +69,11 @@ impl Scene<Data, ()> for Waiting {
         }
         self.ticks -= 1;
         if self.ticks <= 0 {
-            let v = world.rng.gen_range(0..360u32) as f32;
+            let v = gen_range(0, 360u32) as f32;
             SceneSwitch::replace(Target {
                 ticks: 1 * FPS,
-                min: v - 5.0,
-                max: v + 5.0,
+                min: (v - 5.0).rem_euclid(360.0),
+                max: (v + 5.0).rem_euclid(360.0),
             })
         } else {
             SceneSwitch::None
@@ -94,7 +92,7 @@ impl Scene<Data, ()> for Target {
         self.ticks -= 1;
         if self.ticks <= 0 {
             world.count += 1;
-            let ticks = world.rng.gen_range(1..=6) * FPS / 2;
+            let ticks = gen_range(1, 6) * FPS / 2;
             SceneSwitch::replace(Waiting {
                 ticks,
                 background: RED,
@@ -126,7 +124,7 @@ impl Scene<Data, ()> for Target {
                     }
                 }
                 world.count += 1;
-                let ticks = world.rng.gen_range(1..=6) * FPS / 2;
+                let ticks = gen_range(1, 6) * FPS / 2;
                 return SceneSwitch::replace(Waiting { ticks, background });
             }
 
