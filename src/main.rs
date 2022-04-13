@@ -1,23 +1,37 @@
 use std::time;
 
+use instant::{Duration, Instant};
 use macroquad::prelude::*;
 
 mod scene;
 use macroquad::rand::gen_range;
 use scene::*;
 
-const FPS: u32 = 144;
+const FPS: u32 = 60;
 const FONT_START: f32 = 30.0;
 const FONT_FIN: f32 = 30.0;
 const FONT_SCORE: f32 = 18.0;
 
-#[derive(Default)]
 pub struct Data {
     pub score: u32,
     pub count: u32,
     pub was_pressed: bool,
     pub width: f32,
     pub height: f32,
+    pub timer_start: Instant,
+}
+
+impl Default for Data {
+    fn default() -> Self {
+        Self {
+            score: Default::default(),
+            count: Default::default(),
+            was_pressed: Default::default(),
+            width: Default::default(),
+            height: Default::default(),
+            timer_start: Instant::now(),
+        }
+    }
 }
 
 pub struct Start;
@@ -26,7 +40,7 @@ impl Scene<Data, ()> for Start {
     fn update(&mut self, _world: &mut Data) -> SceneSwitch<Data, ()> {
         if macroquad::input::is_mouse_button_pressed(MouseButton::Left) {
             SceneSwitch::replace(Waiting {
-                ticks: 1 * FPS,
+                until: Duration::from_secs(1),
                 background: WHITE,
             })
         } else {
@@ -46,7 +60,7 @@ impl Scene<Data, ()> for Start {
 }
 
 pub struct Waiting {
-    pub ticks: u32,
+    pub until: Duration,
     pub background: Color,
 }
 
@@ -70,11 +84,10 @@ impl Scene<Data, ()> for Waiting {
         if world.count > 50 {
             SceneSwitch::replace(Fin);
         }
-        self.ticks -= 1;
-        if self.ticks <= 0 {
+        if world.timer_start - Instant::now() <= self.until {
             let v = gen_range(0, 360u32) as f32;
             SceneSwitch::replace(Target {
-                ticks: 1 * FPS,
+                until: Duration::from_secs(1),
                 min: (v - 5.0).rem_euclid(360.0),
                 max: (v + 5.0).rem_euclid(360.0),
             })
@@ -85,19 +98,17 @@ impl Scene<Data, ()> for Waiting {
 }
 
 pub struct Target {
-    pub ticks: u32,
+    pub until: Duration,
     pub min: f32,
     pub max: f32,
 }
 
 impl Scene<Data, ()> for Target {
     fn update(&mut self, world: &mut Data) -> SceneSwitch<Data, ()> {
-        self.ticks -= 1;
-        if self.ticks <= 0 {
+        if world.timer_start - Instant::now() <= self.until {
             world.count += 1;
-            let ticks = gen_range(1, 6) * FPS / 2;
             SceneSwitch::replace(Waiting {
-                ticks,
+                until: Duration::from_millis(gen_range(1000, 6000)),
                 background: RED,
             })
         } else {
@@ -127,8 +138,8 @@ impl Scene<Data, ()> for Target {
                     }
                 }
                 world.count += 1;
-                let ticks = gen_range(1, 6) * FPS / 2;
-                return SceneSwitch::replace(Waiting { ticks, background });
+                let until = Duration::from_millis(gen_range(1000, 6000));
+                return SceneSwitch::replace(Waiting { until, background });
             }
 
             if !is_pressed {
@@ -161,7 +172,7 @@ impl Scene<Data, ()> for Fin {
     fn update(&mut self, _world: &mut Data) -> SceneSwitch<Data, ()> {
         if is_mouse_button_pressed(MouseButton::Left) {
             SceneSwitch::replace(Waiting {
-                ticks: 1 * FPS,
+                until: Duration::from_secs(1),
                 background: WHITE,
             })
         } else {
@@ -199,7 +210,7 @@ fn fps_as_duration(fps: u32) -> time::Duration {
 /// A structure that contains our time-tracking state.
 #[derive(Debug)]
 pub struct TimeContext {
-    last_instant: instant::Instant,
+    last_instant: Instant,
     residual_update_dt: time::Duration,
     frame_count: usize,
 }
@@ -208,7 +219,7 @@ impl TimeContext {
     /// Creates a new `TimeContext` and initializes the start to this instant.
     pub fn new() -> TimeContext {
         TimeContext {
-            last_instant: instant::Instant::now(),
+            last_instant: Instant::now(),
             residual_update_dt: time::Duration::from_secs(0),
             frame_count: 0,
         }
@@ -222,7 +233,7 @@ impl TimeContext {
     /// It's usually not necessary to call this function yourself,
     /// [`event::run()`](../event/fn.run.html) will do it for you.
     pub fn tick(&mut self) {
-        let now = instant::Instant::now();
+        let now = Instant::now();
         let time_since_last = now - self.last_instant;
         self.last_instant = now;
         self.frame_count += 1;
