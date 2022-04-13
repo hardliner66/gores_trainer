@@ -107,7 +107,7 @@ impl Scene<Data, ()> for Waiting {
             world.timer_start = Instant::now();
             let size = world.config.size / 2.0;
             SceneSwitch::replace(Target {
-                until: Duration::from_secs(world.config.target_time),
+                until: Duration::from_millis(world.config.target_time),
                 min: (v - size).rem_euclid(360.0),
                 max: (v + size).rem_euclid(360.0),
             })
